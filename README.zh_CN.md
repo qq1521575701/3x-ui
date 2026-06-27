@@ -70,7 +70,7 @@
 ## 快速开始
 
 ```bash
-bash <(curl -Ls https://raw.githubusercontent.com/mhsanaei/3x-ui/master/install.sh)
+bash <(curl -Ls https://raw.githubusercontent.com/qq1521575701/3x-ui/master/install.sh)
 ```
 
 若要安装特定版本，请在命令后附加对应的标签（例如 `v3.4.0`）：
