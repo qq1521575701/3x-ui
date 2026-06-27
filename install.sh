@@ -10,7 +10,7 @@ export XUI_PASSWORD="MySecurePassword123" # 默认网页面板密码
 export XUI_PANEL_PORT="52053"          # 默认网页面板端口
 
 # 默认网页根路径（出于安全考虑，强烈建议修改，如 "mysecurevps"）
-export XUI_WEB_BASE_PATH="adminpath"   
+export XUI_WEB_BASE_PATH=""
 
 # 支持的数据库类型: "sqlite" 或 "postgres"
 export XUI_DB_TYPE="sqlite"           
