@@ -616,6 +616,10 @@ prompt_and_setup_ssl() {
     esac
 }
 
+
+
+
+
 config_after_install() {
     local existing_hasDefaultCredential=$(${xui_folder}/x-ui setting -show true | grep -Eo 'hasDefaultCredential: .+' | awk '{print $2}')
     local existing_webBasePath=$(${xui_folder}/x-ui setting -show true | grep -Eo 'webBasePath: .+' | awk '{print $2}' | sed 's#^/##')
@@ -633,40 +637,43 @@ config_after_install() {
     done
     : "${server_ip:=${XUI_SERVER_IP:-127.0.0.1}}"
 
-
-
-
-
-if [[ ${#existing_webBasePath} -lt 4 ]]; then
+    # 核心判断逻辑开始
+    if [[ ${#existing_webBasePath} -lt 4 ]]; then
         if [[ "$existing_hasDefaultCredential" == "true" ]]; then
             local config_username="${XUI_USERNAME:-admin}"
             local config_password="${XUI_PASSWORD:-admin}"
             local config_port="${XUI_PANEL_PORT:-54322}"
             
-            # 【核心修改点】显式传递一个斜杠 "/" 传给 3X-UI 内核，强制其不生成随机路径
+            # 【核心修改点】传递一个斜杠 "/" 给 3X-UI 内核，强制其不生成随机 adminpath 路径
             local config_webBasePath="/"
 
             if [[ "${XUI_DB_TYPE}" == "postgres" ]]; then
-                # ...（保持你脚本里原本的 postgres 处理逻辑不变）...
                 local xui_env_file="/etc/default/x-ui"
                 [[ "${release}" == "arch" || "${release}" == "alpine" ]] && xui_env_file="/etc/conf.d/x-ui"
+                
                 local xui_dsn="${XUI_DB_DSN}"
-                if [[ -z "$xui_dsn" ]]; then xui_dsn=$(install_postgres_local); fi
+                if [[ -z "$xui_dsn" ]]; then
+                    xui_dsn=$(install_postgres_local)
+                fi
+                
                 if [[ -n "$xui_dsn" ]]; then
                     mkdir -p "$(dirname "$xui_env_file")"
                     echo -e "XUI_DB_TYPE=postgres\nXUI_DB_DSN=${xui_dsn}" > "$xui_env_file"
-                    export XUI_DB_TYPE=postgres export XUI_DB_DSN="${xui_dsn}"
+                    export XUI_DB_TYPE=postgres
+                    export XUI_DB_DSN="${xui_dsn}"
                     ensure_pg_client || true
                 fi
             fi
 
-            # 写入核心设置
+            # 写入 3X-UI 核心设置
             ${xui_folder}/x-ui setting -username "${config_username}" -password "${config_password}" -port "${config_port}" -webBasePath "${config_webBasePath}"
+            
+            # 这里强制传入空参数给 SSL 函数，防止 SSL 生成带斜杠的代码
             prompt_and_setup_ssl "${config_port}" "" "${server_ip}"
 
             local config_apiToken=$(${xui_folder}/x-ui setting -getApiToken true | grep -Eo 'apiToken: .+' | awk '{print $2}')
 
-            # 打印输出清洗：显示为没有路径的干净 URL
+            # 优雅清洗：彻底去掉后缀路径，保持干净的 http://IP:54322/ 
             local display_url="${SSL_SCHEME:-http}://${SSL_HOST:-$server_ip}:${config_port}/"
 
             echo -e "\n${green}═══ Panel Installation Complete (Custom Automated) ═══${plain}"
@@ -676,40 +683,16 @@ if [[ ${#existing_webBasePath} -lt 4 ]]; then
             echo -e "${green}WebBasePath: [EMPTY] (None)${plain}"
             echo -e "${green}Access URL:  ${display_url}${plain}"
             
+            # 存入结果环境文件（传空路径避免产生干扰）
             write_install_result "${config_username}" "${config_password}" "${config_port}" \
                 "" "${SSL_SCHEME:-http}" "${SSL_HOST:-$server_ip}" "${config_apiToken}" "${XUI_DB_TYPE}"
         fi
     else
-        ${xui_folder}/x-ui setting -username "${XUI_USERNAME}" -password "${XUI_PASSWORD}"
+        # 如果非首次安装（已有凭据），仅静默重置账号密码
+        ${xui_folder}/x-ui setting -username "${XUI_USERNAME:-admin}" -password "${XUI_PASSWORD:-admin}"
     fi
 
-
-
-            prompt_and_setup_ssl "${config_port}" "${config_webBasePath}" "${server_ip}"
-
-            local config_apiToken=$(${xui_folder}/x-ui setting -getApiToken true | grep -Eo 'apiToken: .+' | awk '{print $2}')
-
-            # 4. 优化完美的打印与结果拼接（优雅处理空路径，拒绝出现双斜杠 //）
-            local display_url="${SSL_SCHEME:-http}://${SSL_HOST:-$server_ip}:${config_port}"
-            if [[ -n "${config_webBasePath}" ]]; then
-                display_url="${display_url}/${config_webBasePath}"
-            else
-                display_url="${display_url}/"
-            fi
-
-            echo -e "\n${green}═══ Panel Installation Complete (Custom Automated) ═══${plain}"
-            echo -e "${green}Username:    ${config_username}${plain}"
-            echo -e "${green}Password:    ${config_password}${plain}"
-            echo -e "${green}Port:        ${config_port}${plain}"
-            echo -e "${green}WebBasePath: [EMPTY] (None)${plain}"
-            echo -e "${green}Access URL:  ${display_url}${plain}"
-            
-            write_install_result "${config_username}" "${config_password}" "${config_port}" \
-                "${config_webBasePath}" "${SSL_SCHEME:-http}" "${SSL_HOST:-$server_ip}" "${config_apiToken}" "${XUI_DB_TYPE}"
-        fi
-    else
-        ${xui_folder}/x-ui setting -username "${XUI_USERNAME}" -password "${XUI_PASSWORD}"
-    fi
+    # 数据库迁移升级
     ${xui_folder}/x-ui migrate
 }
 
