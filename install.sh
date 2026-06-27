@@ -6,8 +6,8 @@
 export XUI_NONINTERACTIVE="1"         # 1: 强制非交互自动化安装（禁止中途弹窗）
 
 export XUI_USERNAME="admin"           # 默认网页面板用户名
-export XUI_PASSWORD="MySecurePassword123" # 默认网页面板密码
-export XUI_PANEL_PORT="52053"          # 默认网页面板端口
+export XUI_PASSWORD="admin" # 默认网页面板密码
+export XUI_PANEL_PORT="54322"          # 默认网页面板端口
 
 # 默认网页根路径（出于安全考虑，强烈建议修改，如 "mysecurevps"）
 export XUI_WEB_BASE_PATH=""
